@@ -46,9 +46,14 @@ public abstract class Launcher {
 	 * @throws Exception if the application fails to launch
 	 */
 	protected void launch(String[] args) throws Exception {
+		// 注册 URL 协议的处理器:调用 JarFile 的 #registerUrlProtocolHandler() 方法，注册 Spring Boot 自定义的 URLStreamHandler 实现类，用于 jar 包的加载读取
 		JarFile.registerUrlProtocolHandler();
+		// 创建类加载器: 调用自身的 #createClassLoader(List<Archive> archives) 方法，创建自定义的 ClassLoader 实现类，用于从 jar 包中加载类。
 		ClassLoader classLoader = createClassLoader(getClassPathArchives());
+		// 执行声明的 Spring Boot 启动类，进行 Spring Boot 应用的启动
 		launch(args, getMainClass(), classLoader);
+
+		// 简单来说，就是整一个可以读取 jar 包中类的加载器，保证 BOOT-INF/lib 目录下的类和 BOOT-classes 内嵌的 jar 中的类能够被正常加载到，之后执行 Spring Boot 应用的启动。
 	}
 
 	/**
@@ -83,7 +88,9 @@ public abstract class Launcher {
 	 * @throws Exception if the launch fails
 	 */
 	protected void launch(String[] args, String mainClass, ClassLoader classLoader) throws Exception {
+		// 设置 LaunchedURLClassLoader 作为类加载器 LaunchedURLClassLoader 作为类加载器，从而保证能够从 jar 加载到相应的类。
 		Thread.currentThread().setContextClassLoader(classLoader);
+		// 创建 MainMethodRunner 对象，并执行 run 方法，启动 Spring Boot 应用
 		createMainMethodRunner(mainClass, args, classLoader).run();
 	}
 
@@ -113,6 +120,7 @@ public abstract class Launcher {
 	protected abstract List<Archive> getClassPathArchives() throws Exception;
 
 	protected final Archive createArchive() throws Exception {
+		// 获得 jar 所在的绝对路径
 		ProtectionDomain protectionDomain = getClass().getProtectionDomain();
 		CodeSource codeSource = protectionDomain.getCodeSource();
 		URI location = (codeSource != null) ? codeSource.getLocation().toURI() : null;
@@ -124,6 +132,8 @@ public abstract class Launcher {
 		if (!root.exists()) {
 			throw new IllegalStateException("Unable to determine code source archive from " + root);
 		}
+		// 如果是目录，则使用 ExplodedArchive 进行展开
+		// 如果不是目录，则使用 JarFileArchive
 		return (root.isDirectory() ? new ExplodedArchive(root) : new JarFileArchive(root));
 	}
 
